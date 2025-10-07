@@ -24,11 +24,14 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+      
       - name: Deploy Lambda Function
         run: |
+          cd lambda
+          zip function.zip index.py
           aws lambda update-function-code \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
-            --zip-file fileb://lambda/index.zip
+            --zip-file fileb://lambda/function.zip
       - name: Deploy frontend to s3 bucket
         run: |
           aws s3 sync frontend/ s3://${{ env.S3_BUCKET_NAME }}

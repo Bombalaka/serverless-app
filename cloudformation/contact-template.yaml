@@ -175,7 +175,7 @@ Resources:
         Variables:
           TABLE_NAME: !Ref ContactFormDynamoDBTable
           SENDER_EMAIL: !Ref SenderEmail
-          RECEIVER_EMAIL: !Ref ReceiverEmail # owner email
+          OWNER_EMAIL: !Ref ReceiverEmail # owner email
       Code:
         ZipFile: |
           import json

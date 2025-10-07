@@ -1,0 +1,36 @@
+# Github actions Deploy workflows
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+    AWS_REGION: eu-west-1
+    LAMBDA_FUNCTION_NAME: contactform-handler
+    S3_BUCKET_NAME: contactform-static-website-146624863550
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Configuration AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy Lambda Function
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --zip-file fileb://lambda/index.zip
+      - name: Deploy frontend to s3 bucket
+        run: |
+          aws s3 sync frontend/ s3://${{ env.S3_BUCKET_NAME }}
+      - name: Deploy Complete
+        run: echo "Deployment complete"

@@ -31,7 +31,7 @@ jobs:
           zip function.zip index.py
           aws lambda update-function-code \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
-            --zip-file fileb://lambda/function.zip
+            --zip-file fileb://function.zip
       - name: Deploy frontend to s3 bucket
         run: |
           aws s3 sync frontend/ s3://${{ env.S3_BUCKET_NAME }}

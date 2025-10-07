@@ -1,0 +1,341 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  This template creates a serverless application for a contact form. Using AWS Lambda, API Gateway, S3, cloudfront, and DynamoDB.
+
+Parameters:
+  ApplicationName:
+    Type: String
+    Description: "My Application Name"
+    Default: contactform
+  SenderEmail:
+    Type: String
+    Description: "My Sender Email"
+    Default: evamariaarroyo@gmail.com
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+  ReceiverEmail:
+    Type: String
+    Description: "My Receiver Email"
+    Default: yotaka.johansson@hotmail.com
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'  
+
+  
+  
+
+Resources:
+  # IAM roles for lambda function
+  ContactFormRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ApplicationName}-ContactFormRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # AWS Managed Policies 
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AmazonSESFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonAPIGatewayAdministrator
+        - arn:aws:iam::aws:policy/CloudFrontFullAccess
+
+  #IAM for Git Action to access the lambda function
+  ContactFormGitActionRole:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${ApplicationName}-github-action-user"
+      Policies:
+        - PolicyName: GitHubActionsDeploymentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                  - 's3:DeleteObject'
+                Resource:
+                  - !GetAtt ContactFormS3Bucket.Arn
+                  - !Sub "${ContactFormS3Bucket.Arn}/*"
+              # Allow updating Lambda function code
+              - Effect: Allow
+                Action:
+                  - 'lambda:UpdateFunctionCode'
+                  - 'lambda:GetFunction'
+                  - 'lambda:UpdateFunctionConfiguration'
+                Resource:
+                  - !GetAtt ContactFunction.Arn
+              # Allow CloudFormation updates (for infrastructure changes)
+              - Effect: Allow
+                Action:
+                  - 'cloudformation:DescribeStacks'
+                  - 'cloudformation:UpdateStack'
+                  - 'cloudformation:DescribeStackEvents'
+                Resource: '*'
+
+  #Create access keys for GitHub Actions to authenticate
+  GitHubActionsAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref ContactFormGitActionRole
+
+      
+  # Instance Profile for EC2 instances to use the above role
+  ContactFormInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub "${ApplicationName}-contactForminstanceprofile"
+      Roles:
+        - !Ref ContactFormRole
+
+  # Create S3 Bucket
+  ContactFormS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ApplicationName}-static-website-${AWS::AccountId}"
+      Tags:
+        - Key: "Name"
+          Value: "ContactFormS3Bucket"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+      #add public acces configuration
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      #add CORS configuration
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - HEAD
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3000
+
+  # Policy that makes the S3 bucket publicly readable 
+  ContactFormS3BucketPolicy:
+        Type: AWS::S3::BucketPolicy
+        Properties:
+          Bucket: !Ref ContactFormS3Bucket
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: PublicReadGetObject
+                Effect: Allow
+                Principal: "*"
+                Action: s3:GetObject
+                Resource: 
+                  - !Sub "${ContactFormS3Bucket.Arn}/*"
+
+  # DynamoDB table for contact form
+  ContactFormDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ApplicationName}-contactform"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: "email"
+          AttributeType: "S"
+        - AttributeName: "timestamp"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "email"
+          KeyType: "HASH"
+        - AttributeName: "timestamp"
+          KeyType: "RANGE"
+
+      Tags:
+        - Key: "Name"
+          Value: "ContactForm"
+
+  # Lambda function for API handler
+  ContactFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationName}-handler"
+      Runtime: python3.13
+      Handler: index.handler
+      Role: !GetAtt ContactFormRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ContactFormDynamoDBTable
+          SENDER_EMAIL: !Ref SenderEmail
+          RECEIVER_EMAIL: !Ref ReceiverEmail # owner email
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime
+
+          dynamodb = boto3.resource('dynamodb')
+          ses = boto3.client('ses')
+          table = dynamodb.Table(os.environ['TABLE_NAME'])
+          
+          def handler(event, context):
+              body = json.loads(event.get('body', '{}'))
+              email = body.get('email', '')
+              name = body.get('name', '')
+              message = body.get('message', '')
+              timestamp = datetime.now().isoformat()
+              
+              table.put_item(Item={
+                  'email': email,
+                  'timestamp': timestamp,
+                  'name': name,
+                  'message': message
+              })
+              
+              ses.send_email(
+                  Source=os.environ['SENDER_EMAIL'],
+                  Destination={'ToAddresses': [email]},
+                  Message={
+                      'Subject': {'Data': 'Thank you for contacting us'},
+                      'Body': {'Text': {'Data': f'Hello {name},\n\nWe received your message and will reply soon.\n\nBest regards'}}
+                  }
+              )
+              
+              ses.send_email(
+                  Source=os.environ['SENDER_EMAIL'],
+                  Destination={'ToAddresses': [os.environ['RECEIVER_EMAIL']]},
+                  Message={
+                      'Subject': {'Data': f'New contact from {name}'},
+                      'Body': {'Text': {'Data': f'From: {name}\nEmail: {email}\n\n{message}'}}
+                  }
+              )
+              
+              return {
+                  'statusCode': 200,
+                  'headers': {
+                      'Access-Control-Allow-Origin': '*',
+                      'Content-Type': 'application/json'
+                  },
+                  'body': json.dumps({'message': 'Success', 'timestamp': timestamp})
+              }
+  
+  # API Gateway for the contact form
+  ContactFormApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${ApplicationName}-api"
+      Description: "API Gateway for the contact form"
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+  
+  # API Gateway resource for the contact form
+  ContactFormApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ContactFormApiGateway
+      ParentId: !GetAtt ContactFormApiGateway.RootResourceId
+      PathPart: 'submit'
+
+  # handles POST requests to /submit
+  ContactFormApiGatewayMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ContactFormApiGateway
+      ResourceId: !Ref ContactFormApiGatewayResource
+      HttpMethod: POST
+      AuthorizationType: NONE  # No authentication needed
+      Integration:
+        Type: AWS_PROXY  # Sends everything directly to Lambda
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ContactFunction.Arn}/invocations'
+  
+  #options method for the contact form
+  ContactFormApiGatewayOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ContactFormApiGateway
+      ResourceId: !Ref ContactFormApiGatewayResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              'method.response.header.Access-Control-Allow-Origin': "'*'"
+              'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              'method.response.header.Access-Control-Allow-Methods': "'OPTIONS,POST,GET'"
+      
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            'method.response.header.Access-Control-Allow-Origin': "'*'"
+            'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            'method.response.header.Access-Control-Allow-Methods': "'OPTIONS,POST,GET'"
+        
+      RequestParameters:
+        'method.request.header.Content-Type': true
+        'method.request.header.Accept': true
+
+  # API Gateway deployment for the contact form
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - ContactFormApiGatewayMethod
+      - ContactFormApiGatewayOptionsMethod
+    Properties:
+      RestApiId: !Ref ContactFormApiGateway
+      StageName: prod 
+  
+  # Give API Gateway permission to call Lambda
+  ApiGatewayLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ContactFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ContactFormApiGateway}/*/*'
+
+
+  # output for the stack
+Outputs:
+  WebsiteURL:
+    Description: URL of the static website
+    Value: !GetAtt ContactFormS3Bucket.WebsiteURL
+  
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ContactFormApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/submit'
+  
+  BucketName:
+    Description: S3 Bucket name for uploading website files
+    Value: !Ref ContactFormS3Bucket
+  
+  DynamoDBTable:
+    Description: DynamoDB table name
+    Value: !Ref ContactFormDynamoDBTable
+  
+  GitHubActionsAccessKeyId:
+    Description: Access Key ID for GitHub Actions (add this to GitHub Secrets as AWS_ACCESS_KEY_ID)
+    Value: !Ref GitHubActionsAccessKey
+
+  GitHubActionsSecretAccessKey:
+    Description: Secret Access Key for GitHub Actions (add this to GitHub Secrets as AWS_SECRET_ACCESS_KEY)
+    Value: !GetAtt GitHubActionsAccessKey.SecretAccessKey
+
+
+  
+  
+

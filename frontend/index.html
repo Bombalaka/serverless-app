@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Simple Landing Page</title>
+	<meta name="description" content="A clean, minimal landing page." />
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+	<header class="site-header" id="top">
+		<div class="container nav-wrapper">
+			<a href="#top" class="logo" aria-label="Homepage">Brand<span>Logo</span></a>
+			<nav class="primary-nav" aria-label="Main Navigation">
+				<button class="nav-toggle" aria-expanded="false" aria-controls="nav-menu">☰<span class="sr-only">Menu</span></button>
+				<ul id="nav-menu">
+					<li><a href="#features">Features</a></li>
+					<li><a href="#about">About</a></li>
+					<li><a href="#faq">FAQ</a></li>
+					<li><a href="#contact" class="btn small">Contact</a></li>
+				</ul>
+			</nav>
+		</div>
+	</header>
+
+	<main>
+		<section class="hero" aria-labelledby="hero-heading">
+			<div class="container hero-inner">
+				<div class="hero-text">
+					<h1 id="hero-heading">Build Something Great, Simply</h1>
+					<p class="lead">A lightweight starter landing page with clean structure, responsive layout, and minimal enhancements so you can focus on your product.</p>
+					<div class="cta-group">
+						<a href="#features" class="btn primary">Explore Features</a>
+						<a href="#contact" class="btn secondary">Get in Touch</a>
+					</div>
+					<p class="note">No frameworks. Just semantic HTML, modern CSS & tiny JS.</p>
+				</div>
+				<div class="hero-art" aria-hidden="true">
+					<div class="gradient-card">
+						<div class="sparkle"></div>
+						<div class="sparkle delay"></div>
+						<div class="inner">
+							<h2>Fast. Focused.</h2>
+							<p>Drop-in starter layout ready to adapt.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="features" class="features section" aria-labelledby="features-heading">
+			<div class="container">
+				<h2 id="features-heading" class="section-title">Features</h2>
+				<div class="feature-grid">
+					<article class="feature-card" data-reveal>
+						<h3>Accessible</h3>
+						<p>Semantic tags, proper landmarks, focus styles, and high contrast defaults.</p>
+					</article>
+					<article class="feature-card" data-reveal>
+						<h3>Responsive</h3>
+						<p>Mobile-first flex & grid layout that scales elegantly from phones to desktops.</p>
+					</article>
+					<article class="feature-card" data-reveal>
+						<h3>Performant</h3>
+						<p>Tiny footprint. No blocking assets beyond a single font & stylesheet.</p>
+					</article>
+					<article class="feature-card" data-reveal>
+						<h3>Customizable</h3>
+						<p>CSS variables for colors, spacing, radii and shadows. Tweak in seconds.</p>
+					</article>
+					<article class="feature-card" data-reveal>
+						<h3>Progressive</h3>
+						<p>Enhancements like smooth scroll, reveal animations degrade gracefully.</p>
+					</article>
+					<article class="feature-card" data-reveal>
+						<h3>Lean JS</h3>
+						<p>Only essential interactions: navigation toggle + intersection observer.</p>
+					</article>
+				</div>
+			</div>
+		</section>
+
+		<section id="about" class="about section" aria-labelledby="about-heading">
+			<div class="container narrow">
+				<h2 id="about-heading" class="section-title">About</h2>
+				<p>This starter landing page gives you a refined base: clear hierarchy, balanced white space, and scalable utility-like custom properties. Extend it with your preferred components or convert into a framework structure later.</p>
+			</div>
+		</section>
+
+		<section id="faq" class="faq section" aria-labelledby="faq-heading">
+			<div class="container narrow">
+				<h2 id="faq-heading" class="section-title">FAQ</h2>
+				<details data-reveal>
+					<summary>Can I use this commercially?</summary>
+					<p>Yes. This is a simple structure you can adapt freely.</p>
+				</details>
+				<details data-reveal>
+					<summary>Is JavaScript required?</summary>
+					<p>No. Core content & navigation still appear without JS.</p>
+				</details>
+				<details data-reveal>
+					<summary>How do I customize colors?</summary>
+					<p>Edit the CSS variables at the top of <code>styles.css</code>.</p>
+				</details>
+			</div>
+		</section>
+
+		<section id="contact" class="contact section" aria-labelledby="contact-heading">
+			<div class="container narrow">
+				<h2 id="contact-heading" class="section-title">Contact</h2>
+				<form class="contact-form" action="#" method="post" novalidate data-reveal>
+					<div class="grid">
+						<label>
+							<span>Name</span>
+							<input name="name" type="text" required placeholder="Your name" />
+						</label>
+						<label>
+							<span>Email</span>
+							<input name="email" type="email" required placeholder="you@example.com" />
+						</label>
+					</div>
+					<label>
+						<span>Message</span>
+						<textarea name="message" rows="4" required placeholder="Tell us what you need..."></textarea>
+					</label>
+					<button type="submit" class="btn primary full">Send Message</button>
+					<output class="form-note" aria-live="polite"></output>
+				</form>
+			</div>
+		</section>
+	</main>
+
+	<footer class="site-footer">
+		<div class="container footer-inner">
+			<p>&copy; <span id="year"></span> Your Company. All rights reserved.</p>
+			<a href="#top" class="to-top">Back to top ↑</a>
+		</div>
+	</footer>
+
+	<script src="script.js" defer></script>
+</body>
+</html>

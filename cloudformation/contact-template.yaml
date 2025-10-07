@@ -94,7 +94,7 @@ Resources:
       InstanceProfileName: !Sub "${ApplicationName}-contactForminstanceprofile"
       Roles:
         - !Ref ContactFormRole
-
+  
   # Create S3 Bucket
   ContactFormS3Bucket:
     Type: AWS::S3::Bucket

@@ -40,6 +40,15 @@ serverless-app/
 - AWS account with SES configured for your sender email
 - GitHub repository (for CI/CD)
 
+### 🔥 For New Users (Cloning this repo)
+
+**Essential steps after cloning:**
+
+1. **Deploy the stack** (step 1 below)
+2. **Update API URL** in `frontend/script.js` (step 2 below)
+3. **Set up GitHub Actions** if needed (step 3 below)
+4. **Verify SES email** addresses
+
 ### 1. Deploy Infrastructure
 
 ```bash
@@ -58,7 +67,28 @@ aws cloudformation create-stack \
     ParameterKey=ReceiverEmail,ParameterValue=your-receiver@email.com
 ```
 
-### 2. Configure GitHub Actions (Optional)
+### 2. Update Frontend API URL
+
+**Important:** Update the API endpoint in your frontend JavaScript file:
+
+1. Get your new API endpoint:
+```bash
+aws cloudformation describe-stacks \
+  --stack-name contactform-stack \
+  --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].[OutputValue]' \
+  --output text
+```
+
+2. Update `frontend/script.js` - Replace the fetch URL:
+```javascript
+// Find this line (around line 45):
+const response = await fetch("https://OLD-API-ID.execute-api.eu-west-1.amazonaws.com/prod/submit", {
+
+// Replace with your new API endpoint:
+const response = await fetch("https://YOUR-NEW-API-ID.execute-api.eu-west-1.amazonaws.com/prod/submit", {
+```
+
+### 3. Configure GitHub Actions (Optional)
 
 If you want automated deployments:
 
@@ -72,6 +102,10 @@ aws cloudformation describe-stacks \
 2. Add these to GitHub repository secrets:
    - `AWS_ACCESS_KEY_ID`
    - `AWS_SECRET_ACCESS_KEY`
+
+3. Update the GitHub Actions workflow environment variables in `.github/workflows/deploy.yml`:
+   - Update `S3_BUCKET_NAME` with your new bucket name
+   - Update `LAMBDA_FUNCTION_NAME` if using a different application name
 
 ### 3. Access Your Application
 
@@ -198,6 +232,14 @@ Submit a contact form.
 4. **Stack recreation**
    - Delete old stack completely before recreating
    - Update GitHub secrets with new access keys after recreation
+   - **Update API URL in `frontend/script.js`** with new endpoint
+   - Update GitHub Actions environment variables if bucket/function names changed
+
+5. **After cloning this repository**
+   - Deploy CloudFormation stack first
+   - Get your new API endpoint and update `frontend/script.js`
+   - Set up GitHub secrets if using CI/CD
+   - Verify SES email addresses
 
 ### Logs and Debugging
 

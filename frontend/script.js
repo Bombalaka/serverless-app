@@ -54,7 +54,7 @@
       };
 
       try {
-        const response = await fetch("https://4wjem488yg.execute-api.eu-west-1.amazonaws.com/prod/submit", {
+        const response = await fetch("https://rjav2ow2z6.execute-api.eu-west-1.amazonaws.com/prod/submit", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -32,8 +32,10 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
             --zip-file fileb://function.zip
-      - name: Deploy frontend to s3 bucket
+
+      - name: Deploy frontend folder to s3 bucket
         run: |
           aws s3 sync frontend/ s3://${{ env.S3_BUCKET_NAME }}
+          
       - name: Deploy Complete
         run: echo "Deployment complete"
